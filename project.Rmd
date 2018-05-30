@@ -1,0 +1,92 @@
+---
+title: "Machine Learning"
+author: "Jose Rios"
+date: "May 29, 2018"
+output: html_document
+---
+
+## Project
+
+In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants in an experiment carried out by a group of enthusiasts who took measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The data is divided into two sets: a training and a testing set. They come from the Pontifical Catholic University-Rio de Janeiro in Brazil (http://groupware.les.inf.puc-rio.br/har). 
+
+First let us know what's in each file.
+
+```{r read}
+library("caret")
+set.seed(33873)
+training<-read.csv("pml-training.csv")
+testing<-read.csv("pml-testing.csv")
+dim(training)
+dim(testing)
+head(training,3)
+head(testing,3)
+#training$classe<-as.numeric(training$classe)    # convert classe to numeric
+table(training$classe)
+```
+
+So the data are composed of 19622 training records and only 20 testing records. There are 160 features in each set, that last of which is the outcome, "classe". It has five possible values, ranging from A to E.
+
+We are going to fit two models. The first one is a linear model and the second a decision tree using a 3-fold cross validation.
+
+The testing data doesn't have the 'classe' variable. Each model will be used to predict 20 different test cases.
+
+Some variables have missing values. Therefore, we have chosen to use only those variables that have to do with the type of roll (either a belt, an arm, a dummbell or a forearm roll). The following plot shows the relationship between these variables.
+
+```{r pair}
+# add columns that start with 'roll' to 'classe' column
+trainingAC <- training[c(grep("^roll",names(training)),160)]
+names(trainingAC)
+# select only the columns that start with 'roll' 
+testingAC  <- testing[c(grep("^roll",names(training)))]
+featurePlot(x=trainingAC[,1:4],y=training$classe,plot="pairs")
+```
+
+## First model: linear regression 
+
+Let us now fit a linear model.
+
+```{r firs}
+fit1<-train(classe ~ ., data=trainingAC,model="lm",verbose=F,na.action = na.omit)
+fit1$finalModel
+```
+
+As can be seen, the OOB estimate of error rate is low, 7.9%. The accuracy is as high as `r fit1$results[1,2]`. The prediction of the testing set is as follows.
+
+```{r firt}
+pred1<-predict(fit1,testingAC)
+table(pred1)
+```
+
+Therefore, 7 cases were chosen as classe A, 8 as B and so on.
+
+
+
+
+
+
+
+
+## Second model: decision tree with cross validation
+
+Let us now fit a decision tree. A 3-fold cross validation will be used.
+
+```{r secs}
+fit2<-train(classe ~ ., data=trainingAC,model="rpart",na.action = na.omit,
+            trControl=trainControl(method="cv",number=3) )
+fit2$finalModel
+```
+
+As can be seen, the OOB estimate of error rate is low, namely 7,9%. The accuracy, on the other hand, is nearly ideal, `r fit2$results[1,2]`. The prediction of the testing set is as follows.
+
+```{r sect}
+pred2<-predict(fit2,testingAC)
+table(pred2)
+```
+
+Interestingly, all values are approximately equal. The predicted classes are also the same as before. Are both models valid?
+
+#### References
+
+Improve Your Model Performance using Cross Validation (in Python and R). Analytics Vidhya. https://www.analyticsvidhya.com/blog/2018/05/improve-model-performance-cross-validation-in-python-r/
